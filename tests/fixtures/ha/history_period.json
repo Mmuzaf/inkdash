@@ -1,0 +1,32 @@
+[
+  [
+    {
+      "entity_id": "sensor.balcony_temperature",
+      "state": "24.1",
+      "attributes": {
+        "device_class": "temperature",
+        "unit_of_measurement": "°C",
+        "friendly_name": "Balcony Temperature"
+      },
+      "last_changed": "2026-08-10T12:00:00+00:00",
+      "last_updated": "2026-08-10T12:00:00+00:00"
+    },
+    { "state": "27.4", "last_changed": "2026-08-10T13:00:00+00:00" },
+    { "state": "30.2", "last_changed": "2026-08-10T14:00:00+00:00" },
+    { "state": "unavailable", "last_changed": "2026-08-10T15:00:00+00:00" },
+    { "state": "24.9", "last_changed": "2026-08-10T16:00:00+00:00" },
+    { "state": "19.6", "last_changed": "2026-08-10T20:00:00+00:00" },
+    { "state": "15.8", "last_changed": "2026-08-11T04:00:00+00:00" },
+    {
+      "entity_id": "sensor.balcony_temperature",
+      "state": "21.9",
+      "attributes": {
+        "device_class": "temperature",
+        "unit_of_measurement": "°C",
+        "friendly_name": "Balcony Temperature"
+      },
+      "last_changed": "2026-08-11T11:23:00+00:00",
+      "last_updated": "2026-08-11T11:23:00+00:00"
+    }
+  ]
+]

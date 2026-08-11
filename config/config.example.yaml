@@ -1,0 +1,70 @@
+# Copy to config/config.yaml and adjust. Entity ids live here and nowhere else, so no
+# layout ever needs to know what your sensors are called.
+
+home_assistant:
+  # Fallback used when $HA_URL is unset, so a checked-in config can name the usual
+  # instance while a deployment points somewhere else without editing this file.
+  url: http://homeassistant.local:8123
+  url_env: HA_URL
+  # The REST API accepts only bearer tokens. Create a long-lived access token under your
+  # Home Assistant profile and export it as $HA_TOKEN. Tokens belong in the environment,
+  # never in this file.
+  token_env: HA_TOKEN
+  timeout_seconds: 10.0
+  verify_ssl: true
+
+dashboard:
+  layout: home
+  title: STATUS
+  # mock renders from tests/fixtures/home_dashboard.yaml, home_assistant queries live data.
+  provider: mock
+  mock_fixture: tests/fixtures/home_dashboard.yaml
+  # How long the panel sleeps between refreshes. Set this to the same number as the sleep
+  # interval in the captive portal (firmware/SETUP.md): the renderer cannot read it from
+  # the panel, and it is what the Awake Interval field in the header is based on.
+  sleep_minutes: 15
+  # How often the server renders in the background, and how soon it retries after a failed
+  # cycle. The panel is always served the most recent result, so the interval is what
+  # decides how stale the dashboard it downloads can be, and rendering faster than the
+  # panel wakes is wasted work. $INKDASH_RENDER_INTERVAL_SECONDS and
+  # $INKDASH_RENDER_RETRY_SECONDS override both, so a deployment need not edit this file.
+  render_interval_seconds: 5.0
+  render_retry_seconds: 30.0
+
+display:
+  # The panel to render for, and the only display setting. Its resolution, character grid
+  # and gray levels are fixed per model in src/inkdash/display.py, and the dashboard is
+  # laid out for that grid in src/inkdash/widgets/base.py.
+  # Supported: inkplate10 (1200x825, 120x42 cells, 8 levels).
+  model: inkplate10
+
+entities:
+  weather:
+    entity: weather.forecast_home
+    forecast_type: daily
+    forecast_days: 6
+
+  sun: sun.sun
+
+  rooms:
+    bedroom:
+      temperature: sensor.bedroom_temperature
+      humidity: sensor.bedroom_humidity
+    bathroom:
+      temperature: sensor.bathroom_temperature
+      humidity: sensor.bathroom_humidity
+    kitchen:
+      temperature: sensor.kitchen_temperature
+      humidity: sensor.kitchen_humidity
+    balcony:
+      temperature: sensor.balcony_temperature
+      humidity: sensor.balcony_humidity
+
+  history:
+    entity: sensor.balcony_temperature
+    label: BALCONY
+    hours: 24
+
+  inkplate:
+    battery: sensor.inkplate_battery
+    wifi: sensor.inkplate_wifi_signal

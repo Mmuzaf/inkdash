@@ -6,6 +6,8 @@ __pycache__/
 # C extensions
 *.so
 
+.idea
+
 # Distribution / packaging
 .Python
 build/
@@ -150,6 +152,9 @@ activemq-data/
 # Environments
 .env
 .envrc
+
+# Local configuration; config/config.example.yaml is the committed template.
+config/config.yaml
 .venv
 env/
 venv/
@@ -205,6 +210,10 @@ tempCodeRunnerFile.py
 
 # Ruff stuff:
 .ruff_cache/
+
+# PlatformIO
+.pio/
+firmware/.vscode/
 
 # PyPI configuration file
 .pypirc

@@ -1,0 +1,24 @@
+services:
+  renderer:
+    # The build context is the whole repository: the image needs src, config and the
+    # lockfile, none of which live in this directory.
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: inkdash:latest
+    ports:
+      - "${PORT:-10825}:10825"
+    environment:
+      # The header prints wall-clock time, so a container left on UTC dates the dashboard
+      # wrongly by the whole offset. Override in .env when deploying elsewhere.
+      TZ: ${TZ:-Europe/Berlin}
+      HA_URL: ${HA_URL:-}
+      HA_TOKEN: ${HA_TOKEN:-}
+    volumes:
+      - ./config:/app/config:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:10825/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

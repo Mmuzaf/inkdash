@@ -1,0 +1,66 @@
+[project]
+name = "inkdash"
+version = "0.1.0"
+description = "Textual dashboard renderer for Inkplate e-paper displays"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "httpx",
+    "pillow",
+    "pydantic>=2",
+    "python-dotenv>=1.2.2",
+    "pyyaml",
+    "resvg-py",
+    "rich",
+    "textual",
+    "uvicorn",
+]
+
+[project.scripts]
+inkdash = "inkdash.cli:main"
+
+[dependency-groups]
+dev = [
+    "mypy",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "ruff",
+    "types-pyyaml",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/inkdash"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "I",
+    "UP",
+    "B",
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+
+[[tool.mypy.overrides]]
+module = ["resvg_py.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["src/inkdash"]

@@ -1,0 +1,103 @@
+# CasaOS app definition for the renderer.
+#
+# CasaOS installs an app by pulling an image, so unlike docker-compose.yml in this
+# directory it cannot build from the source tree. Publish the image first:
+#
+#   make docker-release IMAGE=<your docker hub user>/inkdash
+#
+# then paste this file into CasaOS > App Store > Custom Install, and change the image
+# line below to match. The build has to be multi-arch when it is pushed from an Apple
+# Silicon Mac, because a Zimaboard is amd64; make docker-release handles that.
+name: inkdash
+
+services:
+  inkdash:
+    image: mmuzaf/inkdash:latest
+    container_name: inkdash
+    hostname: inkdash
+
+    restart: unless-stopped
+    network_mode: bridge
+
+    ports:
+      - target: 10825
+        published: "10825"
+        protocol: tcp
+
+    # HA_URL and HA_TOKEN are left blank so CasaOS shows them as fields to fill in. Both
+    # override whatever config.yaml says, which is why the token never has to be written
+    # to disk. TZ is preset because a container on UTC dates the dashboard wrongly.
+    environment:
+      TZ: Europe/Berlin
+      HA_URL: ""
+      HA_TOKEN: ""
+
+    volumes:
+      - type: bind
+        source: /DATA/AppData/inkdash/config
+        target: /app/config
+
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:10825/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+    x-casaos:
+      envs:
+        - container: TZ
+          description:
+            en_US: Timezone for the clock in the dashboard header, for example Europe/Berlin
+        - container: HA_URL
+          description:
+            en_US: Home Assistant base URL, for example http://zimaboard.lan:8123
+        - container: HA_TOKEN
+          description:
+            en_US: Home Assistant long-lived access token, from Profile > Security
+
+      ports:
+        - container: "10825"
+          description:
+            en_US: HTTP port the Inkplate fetches the rendered PNG from
+
+      volumes:
+        - container: /app/config
+          description:
+            en_US: Holds config.yaml, naming the display model and the entities to show
+
+x-casaos:
+  architectures:
+    - amd64
+    - arm64
+
+  main: inkdash
+  category: Home Automation
+
+  title:
+    en_US: inkdash
+
+  tagline:
+    en_US: ASCII dashboards for e-paper
+
+  description:
+    en_US: |
+      Renders a Home Assistant dashboard as an ASCII-art PNG sized for an Inkplate
+      e-paper panel. The panel wakes on a timer, fetches the image over plain HTTP
+      using an ETag so an unchanged dashboard costs one small request, draws it and
+      goes back to sleep. All layout logic lives here, so changing a dashboard never
+      means reflashing the device.
+
+  tips:
+    before_install:
+      en_US: |
+        Create /DATA/AppData/inkdash/config and copy the repository's config/config.yaml
+        into it before starting. The renderer falls back to built-in defaults when that
+        directory is empty, which will not match your entity ids.
+
+  index: /render/home.png
+  port_map: "10825"
+  scheme: http
+
+  author: Mmuzaf
+  developer: Mmuzaf
+  repo: "https://github.com/Mmuzaf/inkdash"

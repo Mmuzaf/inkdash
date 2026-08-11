@@ -1,0 +1,82 @@
+[
+  {
+    "entity_id": "weather.forecast_home",
+    "state": "cloudy",
+    "attributes": {
+      "temperature": 19.7,
+      "humidity": 64,
+      "temperature_unit": "°C",
+      "friendly_name": "Forecast Home"
+    },
+    "last_changed": "2026-08-11T11:20:00.000000+00:00"
+  },
+  {
+    "entity_id": "sun.sun",
+    "state": "above_horizon",
+    "attributes": {
+      "next_rising": "2026-08-12T03:44:00+00:00",
+      "next_setting": "2026-08-11T18:39:00+00:00",
+      "friendly_name": "Sun"
+    },
+    "last_changed": "2026-08-11T03:44:00.000000+00:00"
+  },
+  {
+    "entity_id": "sensor.bedroom_temperature",
+    "state": "24.8",
+    "attributes": {
+      "device_class": "temperature",
+      "unit_of_measurement": "°C",
+      "friendly_name": "Bedroom Temperature"
+    },
+    "last_changed": "2026-08-11T11:22:00.000000+00:00"
+  },
+  {
+    "entity_id": "sensor.bedroom_humidity",
+    "state": "36",
+    "attributes": {
+      "device_class": "humidity",
+      "unit_of_measurement": "%",
+      "friendly_name": "Bedroom Humidity"
+    },
+    "last_changed": "2026-08-11T11:22:00.000000+00:00"
+  },
+  {
+    "entity_id": "sensor.balcony_temperature",
+    "state": "21.9",
+    "attributes": {
+      "device_class": "temperature",
+      "unit_of_measurement": "°C",
+      "friendly_name": "Balcony Temperature"
+    },
+    "last_changed": "2026-08-11T11:23:00.000000+00:00"
+  },
+  {
+    "entity_id": "sensor.balcony_humidity",
+    "state": "unavailable",
+    "attributes": {
+      "device_class": "humidity",
+      "friendly_name": "Balcony Humidity"
+    },
+    "last_changed": "2026-08-11T09:00:00.000000+00:00"
+  },
+  {
+    "entity_id": "sensor.inkplate_battery",
+    "state": "82.4",
+    "attributes": {
+      "device_class": "battery",
+      "unit_of_measurement": "%",
+      "friendly_name": "Inkplate Battery"
+    },
+    "last_changed": "2026-08-11T11:25:00.000000+00:00"
+  },
+  {
+    "entity_id": "sensor.inkplate_wifi_signal",
+    "state": "-55",
+    "attributes": {
+      "device_class": "signal_strength",
+      "unit_of_measurement": "dBm",
+      "friendly_name": "Inkplate WiFi Signal"
+    },
+    "last_changed": "2026-08-11T11:25:00.000000+00:00"
+  }
+]

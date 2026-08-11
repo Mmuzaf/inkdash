@@ -1,0 +1,45 @@
+name: Firmware
+
+# Kept separate from ci.yml so `make check` stays the single contract for the
+# Python renderer: the ESP32 toolchain is a slow download and is irrelevant to
+# every change that does not touch the sketch.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "firmware/**"
+      - ".github/workflows/firmware.yml"
+  pull_request:
+    paths:
+      - "firmware/**"
+      - ".github/workflows/firmware.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [inkplate10, inkplate10v2]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # platformio.ini derives the version string from git describe.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            firmware/.pio
+          key: pio-${{ matrix.environment }}-${{ hashFiles('firmware/platformio.ini') }}
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build
+        run: make -C firmware build ENV=${{ matrix.environment }}

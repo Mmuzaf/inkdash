@@ -1,0 +1,111 @@
+generated_at: "2026-08-11T13:25:00+02:00"
+
+weather:
+  condition: cloudy
+  temperature: 19.7
+  high: 22.6
+  low: 17.0
+  entity_name: Forecast Home
+  sunrise: "2026-08-11T05:44:00+02:00"
+  sunset: "2026-08-11T20:39:00+02:00"
+
+forecast:
+  - day: TUE
+    condition: cloudy
+    high: 22.6
+    low: 17.0
+  - day: WED
+    condition: sunny
+    high: 25.3
+    low: 12.9
+  - day: THU
+    condition: sunny
+    high: 28.6
+    low: 15.2
+  - day: FRI
+    condition: sunny
+    high: 31.1
+    low: 19.7
+  - day: SAT
+    condition: sunny
+    high: 35.5
+    low: 22.0
+  - day: SUN
+    condition: rainy
+    high: 23.6
+    low: 20.1
+
+rooms:
+  bedroom:
+    temperature: 24.8
+    humidity: 36
+  bathroom:
+    temperature: 25.2
+    humidity: 37
+  kitchen:
+    temperature: 25.0
+    humidity: 36
+  balcony:
+    temperature: 21.9
+    humidity: 41
+
+inkplate:
+  battery_percent: 82
+  wifi_rssi_dbm: -55
+  last_refresh: "2026-08-11T13:25:00+02:00"
+  next_wake: "2026-08-11T13:40:00+02:00"
+
+history:
+  label: BALCONY
+  unit: "°C"
+  start: "2026-08-10T14:00:00+02:00"
+  interval_minutes: 30
+  values:
+    - 24.1
+    - 25.6
+    - 27.4
+    - 29.2
+    - 30.2
+    - 29.6
+    - 28.1
+    - 26.4
+    - 24.9
+    - 23.6
+    - 22.4
+    - 21.3
+    - 20.4
+    - 19.6
+    - 18.9
+    - 18.3
+    - 17.8
+    - 17.4
+    - 17.0
+    - 16.7
+    - 16.4
+    - 16.1
+    - 15.9
+    - 15.8
+    - 15.9
+    - 16.4
+    - 17.3
+    - 18.6
+    - 19.8
+    - 20.7
+    - 21.4
+    - 22.1
+    - 22.9
+    - 23.6
+    - 24.2
+    - 24.6
+    - 24.3
+    - 23.7
+    - 23.1
+    - 22.6
+    - 22.2
+    - 22.0
+    - 21.9
+    - 21.8
+    - 21.7
+    - 21.8
+    - 21.9
+    - 21.9

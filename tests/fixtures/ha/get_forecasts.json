@@ -1,0 +1,51 @@
+{
+  "changed_states": [],
+  "service_response": {
+    "weather.forecast_home": {
+      "forecast": [
+        {
+          "datetime": "2026-08-11T00:00:00+00:00",
+          "condition": "cloudy",
+          "temperature": 22.6,
+          "templow": 17.0
+        },
+        {
+          "datetime": "2026-08-12T00:00:00+00:00",
+          "condition": "sunny",
+          "temperature": 25.3,
+          "templow": 12.9
+        },
+        {
+          "datetime": "2026-08-13T00:00:00+00:00",
+          "condition": "sunny",
+          "temperature": 28.6,
+          "templow": 15.2
+        },
+        {
+          "datetime": "2026-08-14T00:00:00+00:00",
+          "condition": "sunny",
+          "temperature": 31.1,
+          "templow": 19.7
+        },
+        {
+          "datetime": "2026-08-15T00:00:00+00:00",
+          "condition": "sunny",
+          "temperature": 35.5,
+          "templow": 22.0
+        },
+        {
+          "datetime": "2026-08-16T00:00:00+00:00",
+          "condition": "rainy",
+          "temperature": 23.6,
+          "templow": 20.1
+        },
+        {
+          "datetime": "2026-08-17T00:00:00+00:00",
+          "condition": "cloudy",
+          "temperature": 21.4,
+          "templow": 18.2
+        }
+      ]
+    }
+  }
+}
