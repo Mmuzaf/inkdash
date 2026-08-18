@@ -106,8 +106,9 @@ make firmware-erase   # erase the Inkplate flash over USB
 ## Documentation
 
 [GUIDE.md](GUIDE.md) covers the rest: connecting Home Assistant, the HTTP API, the Inkplate
-firmware, Docker and CasaOS, everyday development, the architecture and its boundaries,
-supported displays and their constraints, and adding dependencies.
+firmware and [changing its settings from Home Assistant](GUIDE.md#changing-device-settings),
+Docker and CasaOS, everyday development, the architecture and its boundaries, supported
+displays and their constraints, and adding dependencies.
 
 [firmware/SETUP.md](firmware/SETUP.md) covers flashing the panel, the captive portal and
 every device setting.
@@ -122,7 +123,7 @@ every device setting.
 
 Working today: the uv/Make tooling, the mock and Home Assistant providers, the pluggable
 layouts, console/SVG/PNG rendering behind an HTTP API, and the Inkplate firmware with its
-config portal, MQTT telemetry and deep sleep.
+config portal, MQTT telemetry, Home Assistant settings and deep sleep.
 
 Still to come:
 
@@ -130,12 +131,13 @@ Still to come:
       one. Needs `WiFiClientSecure` and a CA bundle in NVS, plus an answer for an expired
       certificate on a device that wakes every fifteen minutes.
 - [ ] **Over-the-air firmware updates.** So a fleet of one does not need a USB cable.
-- [ ] **Changing device settings from Home Assistant, without reflashing.** Every portal
-      setting already lives in NVS, so this needs a way in rather than a new binary: a
-      retained MQTT command topic, read on wake. Needs a fallback for a bad image URL
-      arriving that way, which would leave the panel nothing to fetch and no portal open.
-- [ ] **One source of truth for `sleep_minutes`.** Set in the portal, repeated in
-      `config/config.yaml`, and the header counts down using the server's copy. Worth
-      accepting from the environment and Home Assistant too, but only the device knows the
-      interval it actually sleeps for, so it should report its own and the server prefer it.
+- [x] **Changing device settings from Home Assistant, without reflashing.** The refresh
+      interval and the image URL are MQTT discovery entities, published retained and read on
+      wake. A URL the device cannot fetch is rejected rather than stored, and the portal is
+      still the way back from one that is merely wrong. See
+      [GUIDE.md](GUIDE.md#changing-device-settings).
+- [x] **One source of truth for `wakeup_every_seconds`.** Only the device knows the interval
+      it actually sleeps for, so it reports its own as a Home Assistant number and the
+      server prefers it; `config/config.yaml` is now only the value used until the panel has
+      reported.
 - [ ] **An OpenSearch provider** for historical analytics alongside Home Assistant.

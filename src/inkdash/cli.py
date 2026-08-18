@@ -42,6 +42,12 @@ INKPLATE_SENSORS = (
 # and recovers the prefix the rest of its sensors share.
 INKPLATE_MARKERS = ("refresh_status", "boot_reason")
 
+# The writable settings from the same table, which are not sensors.
+INKPLATE_SETTINGS = (
+    ("number", "wakeup_every"),
+    ("text", "image_url"),
+)
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="inkdash", description=__doc__.splitlines()[0])
@@ -234,16 +240,30 @@ def _print_inkplate(config: Config, by_id: dict[str, dict[str, Any]]) -> None:
             if state is not None:
                 print(f"  {entity_id:<50} {_describe(state)}")
 
+    slug = prefixes[0].removeprefix("sensor.")
+    print("\nInkplate settings, changeable from Home Assistant (GUIDE.md):")
+    for domain, suffix in INKPLATE_SETTINGS:
+        entity_id = f"{domain}.{slug}{suffix}"
+        state = by_id.get(entity_id)
+        found = _describe(state) if state is not None else "not reported yet"
+        print(f"  {entity_id:<50} {found}")
+
+    # The status header shows "--" for whichever of these is not named in the config.
     inkplate = config.entities.inkplate
-    if inkplate.battery or inkplate.wifi:
+    suggestions = {
+        "battery": f"sensor.{slug}battery",
+        "wifi": f"sensor.{slug}wifi_signal",
+        "wakeup_every_seconds": f"number.{slug}wakeup_every",
+    }
+    unset = {key: value for key, value in suggestions.items() if getattr(inkplate, key) is None}
+    if not unset:
         return
 
-    # The status header shows "BAT --" until these are named in the configuration.
-    print("\n  To show them in the status header, add to config.yaml:")
+    print("\n  To use them in the status header, add to config.yaml:")
     print("    entities:")
     print("      inkplate:")
-    print(f"        battery: {prefixes[0]}battery")
-    print(f"        wifi: {prefixes[0]}wifi_signal")
+    for key, value in unset.items():
+        print(f"        {key}: {value}")
 
 
 def _inkplate_prefixes(by_id: dict[str, dict[str, Any]]) -> set[str]:

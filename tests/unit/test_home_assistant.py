@@ -127,13 +127,57 @@ async def test_the_wake_time_is_one_sleep_interval_from_the_render(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The panel fetches the image as it wakes, so rendering starts its next sleep."""
-    config = Config.model_validate(CONFIG_DATA | {"dashboard": {"sleep_minutes": 30}})
+    config = Config.model_validate(CONFIG_DATA | {"dashboard": {"wakeup_every_seconds": 1800}})
     provider = _provider(monkeypatch, _handler(), config)
 
     model = await provider.load()
 
     assert model.inkplate.last_refresh == model.generated_at
-    assert model.inkplate.next_wake == model.generated_at + timedelta(minutes=30)
+    assert model.inkplate.next_wake == model.generated_at + timedelta(seconds=1800)
+
+
+async def test_the_interval_the_device_reports_beats_the_configured_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only the device knows what it sleeps for, so its own number wins."""
+    config = Config.model_validate(
+        CONFIG_DATA
+        | {
+            "dashboard": {"wakeup_every_seconds": 1800},
+            "entities": CONFIG_DATA["entities"]
+            | {
+                "inkplate": {
+                    "battery": "sensor.inkplate_battery",
+                    "wifi": "sensor.inkplate_wifi_signal",
+                    "wakeup_every_seconds": "number.inkplate_wakeup_every",
+                }
+            },
+        }
+    )
+    provider = _provider(monkeypatch, _handler(), config)
+
+    model = await provider.load()
+
+    assert model.inkplate.next_wake == model.generated_at + timedelta(seconds=300)
+
+
+async def test_a_device_that_has_not_reported_leaves_the_configured_interval(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A missing number must not collapse the interval to zero."""
+    config = Config.model_validate(
+        CONFIG_DATA
+        | {
+            "dashboard": {"wakeup_every_seconds": 1800},
+            "entities": CONFIG_DATA["entities"]
+            | {"inkplate": {"wakeup_every_seconds": "number.inkplate_wakeup_every"}},
+        }
+    )
+    provider = _provider(monkeypatch, _handler(missing={"number.inkplate_wakeup_every"}), config)
+
+    model = await provider.load()
+
+    assert model.inkplate.next_wake == model.generated_at + timedelta(seconds=1800)
 
 
 async def test_sun_times_come_from_the_sun_entity(provider: HomeAssistantProvider) -> None:
@@ -192,4 +236,4 @@ async def test_a_missing_entity_degrades_instead_of_failing(
 async def test_probe_reports_entity_count(provider: HomeAssistantProvider) -> None:
     report = await provider.probe()
 
-    assert report["entity_count"] == 8
+    assert report["entity_count"] == 9

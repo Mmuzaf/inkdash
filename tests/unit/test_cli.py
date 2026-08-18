@@ -168,6 +168,14 @@ def test_ha_check_lists_the_inkplate_sensors(
                     "state": "12",
                     "attributes": {"friendly_name": "Hallway panel Boot count"},
                 },
+                {
+                    "entity_id": "number.hallway_panel_wakeup_every",
+                    "state": "900",
+                    "attributes": {
+                        "friendly_name": "Hallway panel Wakeup every",
+                        "unit_of_measurement": "s",
+                    },
+                },
             ],
             "forecast": (),
             "warnings": (),
@@ -184,6 +192,11 @@ def test_ha_check_lists_the_inkplate_sensors(
     # only place they appear.
     assert "sensor.hallway_panel_boot_count" in out
     assert "sensor.hallway_panel_refresh_status" in out
+
+    # The writable settings are not sensors, so they are listed from their own domains.
+    assert "Inkplate settings" in out
+    assert "number.hallway_panel_wakeup_every" in out
+    assert "text.hallway_panel_image_url" in out
 
     # The example config already names an inkplate battery, so there is nothing to suggest.
     assert "add to config.yaml" not in out
@@ -218,6 +231,7 @@ def test_ha_check_suggests_the_inkplate_entities_when_unconfigured(
     out = capsys.readouterr().out
     assert "battery: sensor.hallway_panel_battery" in out
     assert "wifi: sensor.hallway_panel_wifi_signal" in out
+    assert "wakeup_every_seconds: number.hallway_panel_wakeup_every" in out
 
 
 def test_ha_check_says_so_when_no_inkplate_has_reported(

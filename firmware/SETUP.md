@@ -4,9 +4,16 @@ The device is a display appliance. It wakes, reports telemetry over MQTT, downlo
 from the renderer and goes back to sleep. All dashboard logic lives on the server, so
 changing a layout never requires reflashing.
 
-```
-wake -> read battery + panel temperature -> connect Wi-Fi -> publish telemetry
-     -> GET the image URL (If-None-Match) -> draw -> deep sleep (default 15 min)
+```mermaid
+flowchart TD
+    WAKE["wake"] --> SENSORS["read battery + panel temperature"]
+    SENSORS --> WIFI["connect Wi-Fi"]
+    WIFI --> TELEMETRY["publish telemetry"]
+    TELEMETRY --> FETCH["GET the image URL (If-None-Match)"]
+    FETCH --> DRAW["draw"]
+    DRAW --> SETTINGS["apply settings from MQTT"]
+    SETTINGS --> SLEEP["deep sleep (default 900 s)"]
+    SLEEP -.->|"timer, or the wake button"| WAKE
 ```
 
 Nothing is retried in a loop. A failed cycle sleeps and tries again, and e-paper holds its
@@ -114,7 +121,7 @@ the portal back and correct it.
 | --- | --- | --- |
 | Hostname | DHCP hostname, and the basis of the MQTT topics | `inkdash` |
 | Image URL | The PNG endpoint to GET, for example `http://zimaboard.lan:10825/render/home.png` | blank |
-| Sleep minutes | Minutes between refreshes, and the longest gap between retries | `15` |
+| Wakeup every seconds | Seconds between refreshes, and the longest gap between retries | `900` |
 | MQTT host | Broker hostname; blank disables MQTT entirely | blank |
 | MQTT port | Broker port | `1883` |
 | MQTT user | Broker username, blank for anonymous | blank |
@@ -155,18 +162,34 @@ creates the entities by itself. No YAML.
 | Boot reason | `timer`, `button` or `power_on`, diagnostic |
 | Refresh status | `updated`, `unchanged`, `download_failed` or `decode_failed`, diagnostic |
 
+Two settings come back the other way, as controls rather than readings:
+
+| Entity | Kind | Accepts |
+| --- | --- | --- |
+| Wakeup every | `number` | 1 to 86400 seconds |
+| Image URL | `text` | an `http://` URL, up to 191 characters |
+
 Topics, where `<node>` is the hostname reduced to lowercase alphanumerics:
 
 ```
-homeassistant/sensor/<node>/<key>/config   discovery, retained
-inkdash/<node>/state                       telemetry JSON, retained
-inkdash/<node>/refresh                     refresh outcome, retained
+homeassistant/sensor/<node>/<key>/config       discovery, retained
+homeassistant/number/<node>/cfg_<key>/config   discovery, retained
+homeassistant/text/<node>/cfg_<key>/config     discovery, retained
+inkdash/<node>/state                           telemetry JSON, retained
+inkdash/<node>/refresh                         refresh outcome, retained
+inkdash/<node>/config/<key>/state              the setting in force, retained
+inkdash/<node>/config/<key>/set                a new setting, retained by the sender
 ```
+
+[GUIDE.md](../GUIDE.md#changing-device-settings) has the Home Assistant, curl and
+`mosquitto_pub` commands for the last of those.
 
 There is no availability topic. A device that sleeps for fifteen minutes at a time has no
 useful notion of being online, and a last will would mark it unavailable for most of its
-life. Instead every entity carries `expire_after`, set to two and a half sleep cycles: one
-late refresh is normal, two in a row means something is wrong and the entities go unknown.
+life. Instead every sensor carries `expire_after`, set to two and a half wake cycles: one
+late refresh is normal, two in a row means something is wrong and the sensors go unknown.
+The two settings deliberately have no `expire_after`, because a value someone typed has to
+stay on screen however long the panel sleeps.
 
 The telemetry is published before the image is downloaded, so a renderer that is down still
 produces a battery reading. The refresh status is published afterwards, once the outcome is
@@ -177,8 +200,8 @@ known.
 A failed cycle never blocks or retries on the spot. The device draws a banner along the
 bottom of the panel, leaving the last good dashboard visible above it, and sleeps.
 
-Retries back off, starting at one minute and doubling, but never growing past **Sleep
-minutes**: a broken device checks more often than a healthy one, never less. With the
+Retries back off, starting at one minute and doubling, but never growing past **Wakeup every
+seconds**: a broken device checks more often than a healthy one, never less. With the
 default interval the gaps are 1, 2, 4, 8 and then 15 minutes for as long as the failure
 lasts. The banner names the attempt and the next retry, so the panel alone tells you how
 long something has been broken:
@@ -193,9 +216,13 @@ rather than up to a quarter of an hour later. The count also clears on the first
 
 ## Changing settings
 
-Hold the **wake button** while the device boots, either by pressing reset or by waiting for
-a wake cycle. The setup portal opens with the current values filled in. A short press
-without holding just triggers an immediate refresh.
+With a broker configured, the refresh interval and the image URL are Home Assistant entities
+and need no visit to the portal at all; see
+[GUIDE.md](../GUIDE.md#changing-device-settings).
+
+For everything else, hold the **wake button** while the device boots, either by pressing
+reset or by waiting for a wake cycle. The setup portal opens with the current values filled
+in. A short press without holding just triggers an immediate refresh.
 
 ## Resetting
 
@@ -222,14 +249,16 @@ A healthy cycle looks like this:
 [MAIN] inkdash 56f274b, boot 12, woken by timer
 [WIFI] Connected as 192.168.1.42 in 3120ms, -61dBm
 [MQTT] Connected to 192.168.1.10:1883
+[MQTT] inkdash/inkdash/config/wakeup_every_seconds/state 900
+[MQTT] inkdash/inkdash/config/image_url/state http://zimaboard.lan:10825/render/home.png
 [MQTT] inkdash/inkdash/state {"battery":86,"voltage":4.09,...}
 [HTTP] GET http://zimaboard.lan:10825/render/home.png
 [HTTP] Downloaded 24617 bytes
 [MQTT] inkdash/inkdash/refresh updated
-[MAIN] Sleeping for 15 minutes
+[MAIN] Sleeping for 900 seconds
 ```
 
-The two lines worth recognising:
+The lines worth recognising:
 
 - `[HTTP] 304, the dashboard has not changed` replaces the download when the rendered image
   is byte-for-byte what the device already shows. The panel is deliberately left alone, and
@@ -237,6 +266,10 @@ The two lines worth recognising:
   clearest proof the ETag survived deep sleep.
 - `[WIFI] Association failed` means the saved credentials did not work. Hold the wake button
   while booting to get the portal back.
+- `[MQTT] wakeup_every_seconds is now 300` means a setting from Home Assistant was accepted
+  and written. `[MQTT] Ignoring image_url: ...` means it was rejected and the stored value
+  is unchanged.
 
-Setting **Sleep minutes** to 1 in the portal during bring-up makes the whole cycle repeat
-while you are still watching it. Put it back to 15 when everything works.
+```bash
+mosquitto_pub -h zimaboard.lan -r -t inkdash/inkdash/config/wakeup_every_seconds/set -m 60
+```

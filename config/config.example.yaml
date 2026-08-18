@@ -19,10 +19,11 @@ dashboard:
   # mock renders from tests/fixtures/home_dashboard.yaml, home_assistant queries live data.
   provider: mock
   mock_fixture: tests/fixtures/home_dashboard.yaml
-  # How long the panel sleeps between refreshes. Set this to the same number as the sleep
-  # interval in the captive portal (firmware/SETUP.md): the renderer cannot read it from
-  # the panel, and it is what the Awake Interval field in the header is based on.
-  sleep_minutes: 15
+  # How long the panel sleeps between refreshes, and what the Awake Interval field in the
+  # header is based on. Only a starting value: the device owns the real interval, and once
+  # entities.inkplate.wakeup_every_seconds names the number it publishes over MQTT, that
+  # value wins and this one is only used until the panel has reported.
+  wakeup_every_seconds: 900
   # How often the server renders in the background, and how soon it retries after a failed
   # cycle. The panel is always served the most recent result, so the interval is what
   # decides how stale the dashboard it downloads can be, and rendering faster than the
@@ -68,3 +69,6 @@ entities:
   inkplate:
     battery: sensor.inkplate_battery
     wifi: sensor.inkplate_wifi_signal
+    # The interval the device reports, which overrides dashboard.wakeup_every_seconds. It
+    # is also the entity to change from Home Assistant, see GUIDE.md.
+    wakeup_every_seconds: number.inkplate_wakeup_every

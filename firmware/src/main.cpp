@@ -18,12 +18,12 @@ RTC_DATA_ATTR static uint32_t bootCount = 0;
 // and reset by a success or a button press.
 RTC_DATA_ATTR static uint32_t failureCount = 0;
 
-static const uint64_t MICROSECONDS_PER_MINUTE = 60ULL * 1000ULL * 1000ULL;
+static const uint64_t MICROSECONDS_PER_SECOND = 1000ULL * 1000ULL;
 
 // A renderer that is restarting, or a router that has not finished booting, is
 // usually back within a minute, so the first retry is quick and each further
 // failure doubles the wait.
-static const uint32_t BACKOFF_FIRST_MINUTES = 1;
+static const uint32_t BACKOFF_FIRST_SECONDS = 60;
 
 // A single LiPo cell, flat below 3.4V and full at 4.2V. Linear is wrong in
 // detail but honest enough for a battery icon.
@@ -53,19 +53,30 @@ static int batteryPercent(double volts)
 // a failing device retries sooner than a working one, never later. Doubling in
 // a loop rather than shifting keeps the arithmetic safe once failureCount grows
 // large enough that a shift would overflow.
-static uint16_t nextSleepMinutes()
+static uint32_t nextSleepSeconds()
 {
     if (failureCount == 0)
     {
-        return cfg.sleepMinutes;
+        return cfg.wakeupEverySeconds;
     }
 
-    uint32_t minutes = BACKOFF_FIRST_MINUTES;
-    for (uint32_t i = 1; i < failureCount && minutes < cfg.sleepMinutes; i++)
+    uint32_t seconds = BACKOFF_FIRST_SECONDS;
+    for (uint32_t i = 1; i < failureCount && seconds < cfg.wakeupEverySeconds; i++)
     {
-        minutes *= 2;
+        seconds *= 2;
     }
-    return (uint16_t)min(minutes, (uint32_t)cfg.sleepMinutes);
+    return min(seconds, cfg.wakeupEverySeconds);
+}
+
+// Whole minutes read better on a panel a metre away.
+static void formatDuration(char *out, size_t size, uint32_t seconds)
+{
+    if (seconds >= 60 && seconds % 60 == 0)
+    {
+        snprintf(out, size, "%u min", (unsigned)(seconds / 60));
+        return;
+    }
+    snprintf(out, size, "%u s", (unsigned)seconds);
 }
 
 // Every failure path ends here: count the attempt, say so on the panel, and let
@@ -74,19 +85,21 @@ static void reportFailure(const char *problem)
 {
     failureCount++;
 
+    char retry[16];
+    formatDuration(retry, sizeof(retry), nextSleepSeconds());
+
     char message[160];
-    snprintf(message, sizeof(message), "%s (attempt %u, retry in %u min)", problem, (unsigned)failureCount,
-             (unsigned)nextSleepMinutes());
+    snprintf(message, sizeof(message), "%s (attempt %u, retry in %s)", problem, (unsigned)failureCount, retry);
     displayBanner(message);
 }
 
 static void deepSleep()
 {
-    const uint16_t minutes = nextSleepMinutes();
-    Serial.printf("[MAIN] Sleeping for %u minutes\n", minutes);
+    const uint32_t seconds = nextSleepSeconds();
+    Serial.printf("[MAIN] Sleeping for %u seconds\n", (unsigned)seconds);
     Serial.flush();
 
-    esp_sleep_enable_timer_wakeup((uint64_t)minutes * MICROSECONDS_PER_MINUTE);
+    esp_sleep_enable_timer_wakeup((uint64_t)seconds * MICROSECONDS_PER_SECOND);
     esp_sleep_enable_ext0_wakeup(WAKE_BUTTON_PIN, LOW);
     esp_deep_sleep_start();
 }
@@ -131,6 +144,7 @@ void setup()
 
     displayBegin();
     configLoad();
+    portalSaveBoot = configConsumePortalSaved();
 
     Serial.printf("\n[MAIN] inkdash %s, boot %u, woken by %s\n", INKDASH_VERSION, bootCount, wakeReason());
 
