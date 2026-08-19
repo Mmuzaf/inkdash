@@ -69,6 +69,9 @@ class HomeAssistantProvider:
             rooms = group.create_task(self._rooms(client, warnings))
             battery = group.create_task(self._state(client, entities.inkplate.battery, warnings))
             rssi = group.create_task(self._state(client, entities.inkplate.wifi, warnings))
+            wakeup = group.create_task(
+                self._state(client, entities.inkplate.wakeup_every_seconds, warnings)
+            )
             history = group.create_task(self._history(client, warnings))
 
         # The panel asks for the image at the moment it wakes, so rendering time is the
@@ -83,11 +86,18 @@ class HomeAssistantProvider:
                 battery_percent=_as_int(battery.result()),
                 wifi_rssi_dbm=_as_int(rssi.result()),
                 last_refresh=now,
-                next_wake=now + timedelta(minutes=self.config.dashboard.sleep_minutes),
+                next_wake=now + timedelta(seconds=self._wakeup_every_seconds(wakeup.result())),
             ),
             history=history.result(),
             warnings=tuple(warnings),
         )
+
+    def _wakeup_every_seconds(self, state: dict[str, Any] | None) -> int:
+        """The device's own interval, falling back to the configured one."""
+        reported = _as_int(state)
+        if reported is not None and reported > 0:
+            return reported
+        return self.config.dashboard.wakeup_every_seconds
 
     async def probe(self) -> dict[str, Any]:
         """Connectivity check plus entity discovery, used by `inkdash ha-check`.

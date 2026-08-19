@@ -24,7 +24,7 @@ struct Config
 {
     char hostname[32];
     char imageUrl[192];
-    uint16_t sleepMinutes;
+    uint32_t wakeupEverySeconds;
     char mqttHost[64];
     uint16_t mqttPort;
     char mqttUser[32];
@@ -34,14 +34,26 @@ struct Config
 
 extern Config cfg;
 
+// This boot follows a portal save, so retained MQTT settings are stale.
+extern bool portalSaveBoot;
+
 // --- config.cpp ---
 
 extern const char *SETUP_AP_NAME;
+
+extern const uint32_t WAKEUP_EVERY_SECONDS_MIN;
+extern const uint32_t WAKEUP_EVERY_SECONDS_MAX;
+extern const uint32_t WAKEUP_EVERY_SECONDS_DEFAULT;
 
 void configLoad();
 bool configComplete();
 bool wakeButtonHeld();
 void configPortal();
+uint32_t configClampWakeup(uint32_t seconds);
+void configSave();
+// One-shot flag, set before the portal reboots and consumed on the next boot.
+void configSetPortalSaved();
+bool configConsumePortalSaved();
 
 // --- display.cpp ---
 

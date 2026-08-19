@@ -7,6 +7,7 @@ panel, the captive portal and every device setting.
 - [Connecting Home Assistant](#connecting-home-assistant)
 - [The HTTP API](#the-http-api)
 - [The Inkplate](#the-inkplate)
+  - [Changing device settings](#changing-device-settings)
 - [Running it in Docker](#running-it-in-docker)
 - [Everyday development](#everyday-development)
 - [Architecture](#architecture)
@@ -69,6 +70,57 @@ make firmware-flash
 The default build targets a Soldered Inkplate 10. An older e-radionica board needs
 `ENV=inkplate10`; [firmware/SETUP.md](firmware/SETUP.md) explains how to tell them apart,
 and covers flashing, the portal and every setting.
+
+### Changing device settings
+
+From the Home Assistant UI, the entities are on the device page under Settings → Devices.
+The same thing as an action, for automations:
+
+```yaml
+action: mqtt.publish
+data:
+  topic: inkdash/inkdash/config/wakeup_every_seconds/set
+  payload: "300"
+  retain: true
+```
+
+```yaml
+action: number.set_value
+target:
+  entity_id: number.inkdash_wakeup_every
+data:
+  value: 300
+```
+
+With curl, through the same Home Assistant service:
+
+```bash
+curl -sS -X POST \
+  -H "Authorization: Bearer $HA_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"topic":"inkdash/inkdash/config/wakeup_every_seconds/set","payload":"300","retain":true}' \
+  "$HA_URL/api/services/mqtt/publish"
+
+curl -sS -X POST \
+  -H "Authorization: Bearer $HA_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"topic":"inkdash/inkdash/config/image_url/set","payload":"http://zimaboard.lan:10825/render/home.png","retain":true}' \
+  "$HA_URL/api/services/mqtt/publish"
+```
+
+Or on the broker directly, with no Home Assistant involved:
+
+```bash
+mosquitto_pub -h zimaboard.lan -r \
+  -t inkdash/inkdash/config/wakeup_every_seconds/set -m 300
+
+mosquitto_pub -h zimaboard.lan -r \
+  -t inkdash/inkdash/config/image_url/set \
+  -m 'http://zimaboard.lan:10825/render/home.png'
+
+mosquitto_sub -h zimaboard.lan -C 1 \
+  -t inkdash/inkdash/config/wakeup_every_seconds/state
+```
 
 ## Running it in Docker
 

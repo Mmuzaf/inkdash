@@ -97,6 +97,8 @@ class InkplateEntities(BaseModel):
 
     battery: str | None = None
     wifi: str | None = None
+    # Overrides dashboard.wakeup_every_seconds when set.
+    wakeup_every_seconds: str | None = None
 
 
 class EntityMap(BaseModel):
@@ -166,9 +168,7 @@ class DashboardConfig(BaseModel):
     title: str = "STATUS"
     provider: str = "mock"
     mock_fixture: Path = Path("tests/fixtures/home_dashboard.yaml")
-    # TODO The firmware still owns the real sleep interval, set in its captive portal, and
-    #  cannot tell the renderer about it, so this copy has to be kept in step with it by hand.
-    sleep_minutes: int = Field(default=15, gt=0)
+    wakeup_every_seconds: int = Field(default=900, gt=0)
     render_interval_seconds: float = Field(default=5.0, gt=0)
     render_interval_env: str = "INKDASH_RENDER_INTERVAL_SECONDS"
     render_retry_seconds: float = Field(default=30.0, gt=0)

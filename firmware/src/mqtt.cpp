@@ -1,10 +1,13 @@
-// Telemetry and Home Assistant MQTT discovery.
+// Telemetry, settings and Home Assistant MQTT discovery.
 //
 // The device sleeps between refreshes, so it has no useful notion of being
 // "online" and publishes no availability topic: a last will would mark it
-// unavailable for the entire sleep window. Every entity carries expire_after
+// unavailable for the entire sleep window. Every sensor carries expire_after
 // instead, which turns a genuinely missed refresh into an unknown state while
 // tolerating the normal sleep cycle.
+//
+// Settings go the other way and carry no expire_after, because a value the user
+// typed has to stay visible for as long as the panel sleeps.
 
 #include "inkdash.h"
 
@@ -84,7 +87,7 @@ static void addDevice(JsonDocument &doc)
 
 static void publishDiscovery()
 {
-    const uint32_t expireAfter = (uint32_t)(cfg.sleepMinutes * 60 * EXPIRE_AFTER_CYCLES);
+    const uint32_t expireAfter = (uint32_t)(cfg.wakeupEverySeconds * EXPIRE_AFTER_CYCLES);
     char topic[160];
     char payload[MQTT_BUFFER_SIZE];
 
@@ -129,6 +132,220 @@ static void publishDiscovery()
     }
 }
 
+// --- Settings -------------------------------------------------------------
+//
+// A bare scalar per setting, which is what the Home Assistant number and text
+// platforms speak. Only these two: the hostname decides the topics the messages
+// arrive on, and a broker setting cannot be corrected over that same broker.
+
+enum SettingKind
+{
+    SETTING_NUMBER,
+    SETTING_TEXT,
+};
+
+struct SettingSpec
+{
+    const char *key;
+    const char *name;
+    const char *icon;
+    SettingKind kind;
+};
+
+static const SettingSpec SETTINGS[] = {
+    {"wakeup_every_seconds", "Wakeup every", "mdi:timer-sand", SETTING_NUMBER},
+    {"image_url", "Image URL", "mdi:link-variant", SETTING_TEXT},
+};
+static const size_t SETTINGS_COUNT = sizeof(SETTINGS) / sizeof(SETTINGS[0]);
+
+// Home Assistant drops a text entity above 255 silently. Advertising the real
+// slot size stays under that and rejects an over-long URL as it is typed.
+static const uint16_t IMAGE_URL_MAX = sizeof(cfg.imageUrl) - 1;
+
+static void settingStateTopic(char *out, size_t size, const char *key)
+{
+    snprintf(out, size, "inkdash/%s/config/%s/state", nodeId, key);
+}
+
+static void settingCommandTopic(char *out, size_t size, const char *key)
+{
+    snprintf(out, size, "inkdash/%s/config/%s/set", nodeId, key);
+}
+
+static void publishSettingState(const SettingSpec &spec)
+{
+    char topic[128];
+    settingStateTopic(topic, sizeof(topic), spec.key);
+
+    char payload[sizeof(cfg.imageUrl)];
+    if (spec.kind == SETTING_NUMBER)
+    {
+        snprintf(payload, sizeof(payload), "%u", (unsigned)cfg.wakeupEverySeconds);
+    }
+    else
+    {
+        strlcpy(payload, cfg.imageUrl, sizeof(payload));
+    }
+
+    Serial.printf("[MQTT] %s %s\n", topic, payload);
+    client.publish(topic, payload, true);
+}
+
+static bool applyWakeupEverySeconds(const char *value)
+{
+    char *end = nullptr;
+    const unsigned long parsed = strtoul(value, &end, 10);
+    if (end == value || *end != '\0' || parsed == 0)
+    {
+        Serial.printf("[MQTT] Ignoring wakeup_every_seconds: %s\n", value);
+        return false;
+    }
+
+    const uint32_t seconds = configClampWakeup((uint32_t)parsed);
+    if (seconds == cfg.wakeupEverySeconds)
+    {
+        return false;
+    }
+    cfg.wakeupEverySeconds = seconds;
+    Serial.printf("[MQTT] wakeup_every_seconds is now %u\n", (unsigned)seconds);
+    return true;
+}
+
+static bool applyImageUrl(const char *value)
+{
+    // https would fail on every wake with nothing on the panel to say why.
+    if (strncmp(value, "http://", 7) != 0 || strlen(value) >= sizeof(cfg.imageUrl))
+    {
+        Serial.printf("[MQTT] Ignoring image_url: %s\n", value);
+        return false;
+    }
+    if (strcmp(value, cfg.imageUrl) == 0)
+    {
+        return false;
+    }
+
+    strlcpy(cfg.imageUrl, value, sizeof(cfg.imageUrl));
+    // The cached ETag is the old dashboard's, so the new one would 304 and never draw.
+    fetchDropEtag();
+    Serial.printf("[MQTT] image_url is now %s\n", cfg.imageUrl);
+    return true;
+}
+
+static void handleSetting(const SettingSpec &spec, const char *commandTopic, const uint8_t *payload,
+                          unsigned int length)
+{
+    // How a retained command is cleared, not a value to store.
+    if (length == 0)
+    {
+        return;
+    }
+
+    if (portalSaveBoot)
+    {
+        // Anything retained here predates what was just typed into the portal.
+        Serial.printf("[MQTT] Portal save, dropping retained %s\n", spec.key);
+        client.publish(commandTopic, "", true);
+        return;
+    }
+
+    char value[sizeof(cfg.imageUrl)];
+    if (length >= sizeof(value))
+    {
+        Serial.printf("[MQTT] %s payload is too long, %u bytes\n", spec.key, length);
+        return;
+    }
+    memcpy(value, payload, length);
+    value[length] = '\0';
+
+    const bool changed =
+        spec.kind == SETTING_NUMBER ? applyWakeupEverySeconds(value) : applyImageUrl(value);
+    if (changed)
+    {
+        // Only on a change: Home Assistant replays retained commands on every
+        // reconnect, and flash wears out.
+        configSave();
+    }
+}
+
+static void onCommand(char *topic, uint8_t *payload, unsigned int length)
+{
+    char expected[128];
+    for (const SettingSpec &spec : SETTINGS)
+    {
+        settingCommandTopic(expected, sizeof(expected), spec.key);
+        if (strcmp(topic, expected) == 0)
+        {
+            handleSetting(spec, expected, payload, length);
+            return;
+        }
+    }
+}
+
+static void subscribeSettings()
+{
+    char topic[128];
+    for (const SettingSpec &spec : SETTINGS)
+    {
+        settingCommandTopic(topic, sizeof(topic), spec.key);
+        if (!client.subscribe(topic))
+        {
+            Serial.printf("[MQTT] Subscribe failed for %s\n", spec.key);
+        }
+    }
+}
+
+static void publishSettingsDiscovery()
+{
+    char topic[160];
+    char payload[MQTT_BUFFER_SIZE];
+
+    for (const SettingSpec &spec : SETTINGS)
+    {
+        JsonDocument doc;
+        char uniqueId[sizeof(nodeId) + 48];
+        char state[128];
+        char command[128];
+        snprintf(uniqueId, sizeof(uniqueId), "inkdash_%s_cfg_%s", nodeId, spec.key);
+        settingStateTopic(state, sizeof(state), spec.key);
+        settingCommandTopic(command, sizeof(command), spec.key);
+
+        doc["name"] = spec.name;
+        doc["unique_id"] = uniqueId;
+        doc["icon"] = spec.icon;
+        doc["state_topic"] = state;
+        doc["command_topic"] = command;
+        doc["entity_category"] = "config";
+        // Retained, or a change made while the panel sleeps never reaches it.
+        doc["retain"] = true;
+        // Optimistic, because the state echo cannot arrive until the next wake.
+        doc["optimistic"] = true;
+
+        if (spec.kind == SETTING_NUMBER)
+        {
+            doc["min"] = WAKEUP_EVERY_SECONDS_MIN;
+            doc["max"] = WAKEUP_EVERY_SECONDS_MAX;
+            doc["step"] = 1;
+            doc["mode"] = "box";
+            doc["unit_of_measurement"] = "s";
+        }
+        else
+        {
+            doc["min"] = 0;
+            doc["max"] = IMAGE_URL_MAX;
+            doc["mode"] = "text";
+        }
+        addDevice(doc);
+
+        const size_t length = serializeJson(doc, payload, sizeof(payload));
+        snprintf(topic, sizeof(topic), "%s/%s/%s/cfg_%s/config", DISCOVERY_PREFIX,
+                 spec.kind == SETTING_NUMBER ? "number" : "text", nodeId, spec.key);
+        if (!client.publish(topic, (const uint8_t *)payload, length, true))
+        {
+            Serial.printf("[MQTT] Discovery publish failed for %s\n", spec.key);
+        }
+    }
+}
+
 bool mqttBegin()
 {
     connected = false;
@@ -144,6 +361,7 @@ bool mqttBegin()
 
     client.setServer(cfg.mqttHost, cfg.mqttPort);
     client.setBufferSize(MQTT_BUFFER_SIZE);
+    client.setCallback(onCommand);
     // Telemetry is the least important part of the cycle. An unreachable broker
     // should not keep the radio on long enough to matter to the battery.
     client.setSocketTimeout(MQTT_SOCKET_TIMEOUT_SECONDS);
@@ -166,7 +384,13 @@ bool mqttBegin()
 
     Serial.printf("[MQTT] Connected to %s:%u\n", cfg.mqttHost, cfg.mqttPort);
     connected = true;
+
+    // Only subscribe here. Retained commands are read at the end of the cycle,
+    // where the wait costs nothing: see mqttEnd().
+    subscribeSettings();
+
     publishDiscovery();
+    publishSettingsDiscovery();
     return true;
 }
 
@@ -209,7 +433,17 @@ void mqttEnd()
     {
         return;
     }
-    client.loop();
+
+    for (size_t i = 0; i < SETTINGS_COUNT + 1; i++)
+    {
+        client.loop();
+    }
+
+    for (const SettingSpec &spec : SETTINGS)
+    {
+        publishSettingState(spec);
+    }
+
     client.disconnect();
     connected = false;
 }
